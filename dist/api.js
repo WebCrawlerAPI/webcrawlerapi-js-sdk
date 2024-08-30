@@ -55,11 +55,7 @@ class WebcrawlerClient {
                 },
                 'body': JSON.stringify(scrapeRequest),
             };
-            const response = yield fetch(url, requestOptions);
-            if (!response.ok) {
-                throw new Error("Failed to start scraping: " + response.statusText);
-            }
-            const scrapeIDResponse = yield response.json();
+            const scrapeIDResponse = yield this.sendRequest(url, requestOptions);
             if (scrapeIDResponse.id === '') {
                 throw new Error("Failed to fetch job status");
             }
@@ -106,6 +102,22 @@ class WebcrawlerClient {
             catch (e) {
                 throw new Error(`failed to fetch job status ${response.status} ${response.statusText}`);
             }
+        });
+    }
+    sendRequest(url, requestOptions) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let response;
+            try {
+                response = yield fetch(url, requestOptions);
+            }
+            catch (e) {
+                throw new Error(`Failed to send request: ${e}`);
+            }
+            if (!response.ok) {
+                const errorResponse = yield response.json();
+                throw new Error(`${JSON.stringify(errorResponse)}`);
+            }
+            return response.json();
         });
     }
 }

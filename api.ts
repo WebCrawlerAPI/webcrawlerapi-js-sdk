@@ -53,11 +53,7 @@ export class WebcrawlerClient {
             'body': JSON.stringify(scrapeRequest),
         };
 
-        const response = await fetch(url, requestOptions);
-        if (!response.ok) {
-            throw new Error("Failed to start scraping: " + response.statusText);
-        }
-        const scrapeIDResponse: ScrapeIDResponse = await response.json();
+        const scrapeIDResponse: ScrapeIDResponse = await this.sendRequest(url, requestOptions);
 
         if (scrapeIDResponse.id === '') {
             throw new Error("Failed to fetch job status");
@@ -108,6 +104,20 @@ export class WebcrawlerClient {
                 `failed to fetch job status ${response.status} ${response.statusText}`
             );
         }
+    }
+
+    private async sendRequest(url: string, requestOptions: any): Promise<any> {
+        let response: Response;
+        try {
+            response = await fetch(url, requestOptions);
+        } catch (e) {
+            throw new Error(`Failed to send request: ${e}`);
+        }
+        if (!response.ok) {
+            const errorResponse = await response.json();
+            throw new Error(`${JSON.stringify(errorResponse)}`);
+        }
+        return response.json();
     }
 }
 

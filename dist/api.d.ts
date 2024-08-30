@@ -8,4 +8,5 @@ export declare class WebcrawlerClient {
     scrapeWithMeta(scrapeRequest: ScrapeRequest): Promise<ScrapeResponse>;
     scrape(scrapeRequest: ScrapeRequest): Promise<ScrapeResponse>;
     getScrapeResult(scrapeID: string): Promise<ScrapeResponse>;
+    private sendRequest;
 }
