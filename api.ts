@@ -1,4 +1,4 @@
-import {ScrapeIDResponse, ScrapeRequest, ScrapeResponse} from "./model";
+import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse} from "./model";
 
 const BASE_PATH = "https://api.webcrawlerapi.com"
 const initialPullDelayMs = 2000
@@ -15,7 +15,7 @@ export class WebcrawlerClient {
         this.apiVersion = apiVersion;
     }
 
-    public async scrapeAsync(scrapeRequest: ScrapeRequest): Promise<ScrapeIDResponse> {
+    public async scrapeAsync(scrapeRequest: ScrapeRequest): Promise<JobId> {
         const url = `${this.basePath}/${this.apiVersion}/scrape`;
 
         const requestOptions = {
@@ -53,16 +53,16 @@ export class WebcrawlerClient {
             'body': JSON.stringify(scrapeRequest),
         };
 
-        const scrapeIDResponse: ScrapeIDResponse = await this.sendRequest(url, requestOptions);
+        const jobIdResponse: JobId = await this.sendRequest(url, requestOptions);
 
-        if (scrapeIDResponse.id === '') {
+        if (jobIdResponse.id === '') {
             throw new Error("Failed to fetch job status");
         }
 
         let delayIntervalMs = initialPullDelayMs;
         for (let i = 0; i < MaxPullRetries; i++) {
             await new Promise(resolve => setTimeout(resolve, delayIntervalMs));
-            const scrapeResult = await this.getScrapeResult(scrapeIDResponse.id);
+            const scrapeResult = await this.getScrapeResult(jobIdResponse.id);
             if (scrapeRequest.debug) {
                 console.log(`Scrape result: ${JSON.stringify(scrapeResult)}`);
             }
@@ -105,6 +105,79 @@ export class WebcrawlerClient {
             );
         }
     }
+
+    public async crawl(crawlRequest: CrawlRequest): Promise<Job> {
+        const url = `${this.basePath}/${this.apiVersion}/crawl`;
+
+        const requestOptions = {
+            'method': 'POST',
+            'headers': {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`
+            },
+            'body': JSON.stringify(crawlRequest),
+        };
+
+        const jobIdResponse: JobId = await this.sendRequest(url, requestOptions);
+
+        if (jobIdResponse.id === '') {
+            throw new Error("Failed to fetch job status");
+        }
+
+        let delayIntervalMs = initialPullDelayMs;
+        for (let i = 0; i < MaxPullRetries; i++) {
+            await new Promise(resolve => setTimeout(resolve, delayIntervalMs));
+            const job = await this.getJob(jobIdResponse.id);
+            if (job.status !== 'in_progress' && job.status !== 'new') {
+                return job;
+            }
+            if (job.recommended_pull_delay_ms > 0) {
+                delayIntervalMs = job.recommended_pull_delay_ms;
+            }
+        }
+    }
+
+    public async crawlAsync(crawlRequest: CrawlRequest): Promise<JobId> {
+        const url = `${this.basePath}/${this.apiVersion}/crawl`;
+
+        const requestOptions = {
+            'method': 'POST',
+            'headers': {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`
+            },
+            'body': JSON.stringify(crawlRequest),
+        };
+
+        return await this.sendRequest(url, requestOptions);
+    }
+
+    public async getJob(jobID: string): Promise<Job> {
+        const url = `${this.basePath}/${this.apiVersion}/job/${jobID}`;
+        const requestOptions = {
+            'method': 'GET',
+            'headers': {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`
+            }
+        }
+        const response = await fetch(url, requestOptions);
+        if (response.ok) {
+            return response.json();
+        }
+
+        try {
+            const data = await response.json();
+            throw new Error(
+                `failed to fetch job status ${response.status} ${response.statusText}: ${JSON.stringify(data)}`
+            );
+        } catch (e) {
+            throw new Error(
+                `failed to fetch job status ${response.status} ${response.statusText}`
+            );
+        }
+    }
+
 
     private async sendRequest(url: string, requestOptions: any): Promise<any> {
         let response: Response;

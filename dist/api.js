@@ -55,14 +55,14 @@ class WebcrawlerClient {
                 },
                 'body': JSON.stringify(scrapeRequest),
             };
-            const scrapeIDResponse = yield this.sendRequest(url, requestOptions);
-            if (scrapeIDResponse.id === '') {
+            const jobIdResponse = yield this.sendRequest(url, requestOptions);
+            if (jobIdResponse.id === '') {
                 throw new Error("Failed to fetch job status");
             }
             let delayIntervalMs = initialPullDelayMs;
             for (let i = 0; i < MaxPullRetries; i++) {
                 yield new Promise(resolve => setTimeout(resolve, delayIntervalMs));
-                const scrapeResult = yield this.getScrapeResult(scrapeIDResponse.id);
+                const scrapeResult = yield this.getScrapeResult(jobIdResponse.id);
                 if (scrapeRequest.debug) {
                     console.log(`Scrape result: ${JSON.stringify(scrapeResult)}`);
                 }
@@ -90,6 +90,72 @@ class WebcrawlerClient {
                 'headers': {
                     'Authorization': `Bearer ${this.apiKey}`,
                 },
+            };
+            const response = yield fetch(url, requestOptions);
+            if (response.ok) {
+                return response.json();
+            }
+            try {
+                const data = yield response.json();
+                throw new Error(`failed to fetch job status ${response.status} ${response.statusText}: ${JSON.stringify(data)}`);
+            }
+            catch (e) {
+                throw new Error(`failed to fetch job status ${response.status} ${response.statusText}`);
+            }
+        });
+    }
+    crawl(crawlRequest) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const url = `${this.basePath}/${this.apiVersion}/crawl`;
+            const requestOptions = {
+                'method': 'POST',
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.apiKey}`
+                },
+                'body': JSON.stringify(crawlRequest),
+            };
+            const jobIdResponse = yield this.sendRequest(url, requestOptions);
+            if (jobIdResponse.id === '') {
+                throw new Error("Failed to fetch job status");
+            }
+            let delayIntervalMs = initialPullDelayMs;
+            for (let i = 0; i < MaxPullRetries; i++) {
+                yield new Promise(resolve => setTimeout(resolve, delayIntervalMs));
+                const job = yield this.getJob(jobIdResponse.id);
+                if (job.status !== 'in_progress' && job.status !== 'new') {
+                    return job;
+                }
+                if (job.recommended_pull_delay_ms > 0) {
+                    delayIntervalMs = job.recommended_pull_delay_ms;
+                }
+            }
+        });
+    }
+    crawlAsync(crawlRequest) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const url = `${this.basePath}/${this.apiVersion}/crawl`;
+            const requestOptions = {
+                'method': 'POST',
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.apiKey}`
+                },
+                'body': JSON.stringify(crawlRequest),
+            };
+            return yield this.sendRequest(url, requestOptions);
+        });
+    }
+    getJob(jobID) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const url = `${this.basePath}/${this.apiVersion}/job/${jobID}`;
+            console.log(url);
+            const requestOptions = {
+                'method': 'GET',
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.apiKey}`
+                }
             };
             const response = yield fetch(url, requestOptions);
             if (response.ok) {
