@@ -22,7 +22,7 @@ async function main() {
     const client = new webcrawlerapi.WebcrawlerClient(
         "YOUR API ACCESS KEY HERE",
     )
-    // async way - promise will be resolved with the all the data
+    // sync way - promise will be resolved with the all the data
     const syncJob = await client.crawl({
             "items_limit": 10,
             "url": "https://stripe.com/",
