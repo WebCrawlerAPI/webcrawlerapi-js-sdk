@@ -50,7 +50,7 @@ main().catch(console.error);
 ```
 
 ## Response example
-```json
+```javascript
 {
   id: '49c4942b-b7d9-4d62-94b5-b54a3016ac51',
   org_id: 'clxsnorta00075wuuqxgzzvxm',
