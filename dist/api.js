@@ -149,7 +149,6 @@ class WebcrawlerClient {
     getJob(jobID) {
         return __awaiter(this, void 0, void 0, function* () {
             const url = `${this.basePath}/${this.apiVersion}/job/${jobID}`;
-            console.log(url);
             const requestOptions = {
                 'method': 'GET',
                 'headers': {
