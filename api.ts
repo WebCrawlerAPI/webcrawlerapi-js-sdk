@@ -22,7 +22,8 @@ export class WebcrawlerClient {
             'method': 'POST',
             'headers': {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                "User-Agent": "WebcrawlerAPI-NodeJS-Client"
             },
             'body': JSON.stringify(scrapeRequest),
         };
@@ -41,7 +42,7 @@ export class WebcrawlerClient {
         }
     }
 
-    public async scrapeWithMeta(scrapeRequest: ScrapeRequest): Promise<ScrapeResponse> {
+    public async scrapeWithMeta(scrapeRequest: ScrapeRequest, maxPollingRetries: number = MaxPullRetries): Promise<ScrapeResponse> {
         const url = `${this.basePath}/${this.apiVersion}/scrape`;
 
         const requestOptions = {
@@ -60,7 +61,7 @@ export class WebcrawlerClient {
         }
 
         let delayIntervalMs = initialPullDelayMs;
-        for (let i = 0; i < MaxPullRetries; i++) {
+        for (let i = 0; i < maxPollingRetries; i++) {
             await new Promise(resolve => setTimeout(resolve, delayIntervalMs));
             const scrapeResult = await this.getScrapeResult(jobIdResponse.id);
             if (scrapeRequest.debug) {
@@ -73,11 +74,11 @@ export class WebcrawlerClient {
                 delayIntervalMs = scrapeResult.recommended_pull_delay_ms;
             }
         }
-        throw new Error("Scraping took too long, please retry");
+        throw new Error("Scraping took too long, please retry or increase the number of polling retries");
     }
 
-    public async scrape(scrapeRequest: ScrapeRequest): Promise<ScrapeResponse> {
-        const scrapeResult = await this.scrapeWithMeta(scrapeRequest);
+    public async scrape(scrapeRequest: ScrapeRequest, maxPollingRetries: number = MaxPullRetries): Promise<any> {
+        const scrapeResult = await this.scrapeWithMeta(scrapeRequest, maxPollingRetries);
         return scrapeResult.structured_data;
     }
 
@@ -87,6 +88,7 @@ export class WebcrawlerClient {
             'method': 'GET',
             'headers': {
                 'Authorization': `Bearer ${this.apiKey}`,
+                "User-Agent": "WebcrawlerAPI-NodeJS-Client"
             },
         };
         const response = await fetch(url, requestOptions);
@@ -113,7 +115,8 @@ export class WebcrawlerClient {
             'method': 'POST',
             'headers': {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                "User-Agent": "WebcrawlerAPI-NodeJS-Client"
             },
             'body': JSON.stringify(crawlRequest),
         };
@@ -158,7 +161,8 @@ export class WebcrawlerClient {
             'method': 'GET',
             'headers': {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`
+                'Authorization': `Bearer ${this.apiKey}`,
+                "User-Agent": "WebcrawlerAPI-NodeJS-Client"
             }
         }
         const response = await fetch(url, requestOptions);

@@ -1,6 +1,6 @@
 {
   "name": "webcrawlerapi-js",
-  "version": "1.0.4",
+  "version": "1.0.5",
 
   "description": "JS client for WecrawlerAPI",
   "main": "./dist/index.js",
@@ -21,7 +21,7 @@
     "@types/node": "^22.4.0",
     "typescript": "^5.5.4"
   },
-  "author": "Andrew <support@webcrawlerapi.com>",
+  "author": "Andrew <sdk@webcrawlerapi.com>",
   "license": "MIT",
   "dependencies": {}
 }
