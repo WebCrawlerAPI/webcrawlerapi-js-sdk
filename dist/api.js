@@ -27,7 +27,8 @@ class WebcrawlerClient {
                 'method': 'POST',
                 'headers': {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.apiKey}`
+                    'Authorization': `Bearer ${this.apiKey}`,
+                    "User-Agent": "WebcrawlerAPI-NodeJS-Client"
                 },
                 'body': JSON.stringify(scrapeRequest),
             };
@@ -44,8 +45,8 @@ class WebcrawlerClient {
             }
         });
     }
-    scrapeWithMeta(scrapeRequest) {
-        return __awaiter(this, void 0, void 0, function* () {
+    scrapeWithMeta(scrapeRequest_1) {
+        return __awaiter(this, arguments, void 0, function* (scrapeRequest, maxPollingRetries = MaxPullRetries) {
             const url = `${this.basePath}/${this.apiVersion}/scrape`;
             const requestOptions = {
                 'method': 'POST',
@@ -60,7 +61,7 @@ class WebcrawlerClient {
                 throw new Error("Failed to fetch job status");
             }
             let delayIntervalMs = initialPullDelayMs;
-            for (let i = 0; i < MaxPullRetries; i++) {
+            for (let i = 0; i < maxPollingRetries; i++) {
                 yield new Promise(resolve => setTimeout(resolve, delayIntervalMs));
                 const scrapeResult = yield this.getScrapeResult(jobIdResponse.id);
                 if (scrapeRequest.debug) {
@@ -73,12 +74,12 @@ class WebcrawlerClient {
                     delayIntervalMs = scrapeResult.recommended_pull_delay_ms;
                 }
             }
-            throw new Error("Scraping took too long, please retry");
+            throw new Error("Scraping took too long, please retry or increase the number of polling retries");
         });
     }
-    scrape(scrapeRequest) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const scrapeResult = yield this.scrapeWithMeta(scrapeRequest);
+    scrape(scrapeRequest_1) {
+        return __awaiter(this, arguments, void 0, function* (scrapeRequest, maxPollingRetries = MaxPullRetries) {
+            const scrapeResult = yield this.scrapeWithMeta(scrapeRequest, maxPollingRetries);
             return scrapeResult.structured_data;
         });
     }
@@ -89,6 +90,7 @@ class WebcrawlerClient {
                 'method': 'GET',
                 'headers': {
                     'Authorization': `Bearer ${this.apiKey}`,
+                    "User-Agent": "WebcrawlerAPI-NodeJS-Client"
                 },
             };
             const response = yield fetch(url, requestOptions);
@@ -111,7 +113,8 @@ class WebcrawlerClient {
                 'method': 'POST',
                 'headers': {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.apiKey}`
+                    'Authorization': `Bearer ${this.apiKey}`,
+                    "User-Agent": "WebcrawlerAPI-NodeJS-Client"
                 },
                 'body': JSON.stringify(crawlRequest),
             };
@@ -153,7 +156,8 @@ class WebcrawlerClient {
                 'method': 'GET',
                 'headers': {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.apiKey}`
+                    'Authorization': `Bearer ${this.apiKey}`,
+                    "User-Agent": "WebcrawlerAPI-NodeJS-Client"
                 }
             };
             const response = yield fetch(url, requestOptions);
