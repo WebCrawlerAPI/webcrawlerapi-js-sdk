@@ -3,6 +3,7 @@ export interface ScrapeRequest {
     crawler_id: string;
     max_retries?: number;
     debug?: boolean;
+    omit_cache?: boolean;
 }
 
 export interface JobId {
