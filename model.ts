@@ -61,4 +61,7 @@ export interface JobItem {
     updated_at: string;
     cost: number;
     referred_url: string;
+    raw_content_url?: string;
+    cleaned_content_url?: string;
+    getContent(): Promise<string | null>;
 }

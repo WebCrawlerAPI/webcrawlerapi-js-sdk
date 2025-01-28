@@ -89,8 +89,12 @@ class WebcrawlerClient {
             const requestOptions = {
                 'method': 'GET',
                 'headers': {
+                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${this.apiKey}`,
-                    "User-Agent": "WebcrawlerAPI-NodeJS-Client"
+                    "User-Agent": "WebcrawlerAPI-NodeJS-Client",
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
                 },
             };
             const response = yield fetch(url, requestOptions);
@@ -114,7 +118,10 @@ class WebcrawlerClient {
                 'headers': {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${this.apiKey}`,
-                    "User-Agent": "WebcrawlerAPI-NodeJS-Client"
+                    "User-Agent": "WebcrawlerAPI-NodeJS-Client",
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
                 },
                 'body': JSON.stringify(crawlRequest),
             };
@@ -125,14 +132,49 @@ class WebcrawlerClient {
             let delayIntervalMs = initialPullDelayMs;
             for (let i = 0; i < MaxPullRetries; i++) {
                 yield new Promise(resolve => setTimeout(resolve, delayIntervalMs));
-                const job = yield this.getJob(jobIdResponse.id);
+                const timestamp = new Date().getTime();
+                const job = yield this.getJob(`${jobIdResponse.id}?t=${timestamp}`);
                 if (job.status !== 'in_progress' && job.status !== 'new') {
+                    // Transform each job item to include getContent method
+                    job.job_items = job.job_items.map(item => (Object.assign(Object.assign({}, item), { getContent: function () {
+                            return __awaiter(this, void 0, void 0, function* () {
+                                if (this.status !== 'done') {
+                                    return null;
+                                }
+                                let contentUrl;
+                                switch (job.scrape_type) {
+                                    case 'html':
+                                        contentUrl = this.raw_content_url;
+                                        break;
+                                    case 'cleaned':
+                                        contentUrl = this.cleaned_content_url;
+                                        break;
+                                    case 'markdown':
+                                        contentUrl = this.markdown_content_url;
+                                        break;
+                                }
+                                if (!contentUrl) {
+                                    return null;
+                                }
+                                const response = yield fetch(contentUrl, {
+                                    headers: {
+                                        'Accept-Encoding': 'gzip, deflate, br',
+                                        'Accept': '*/*'
+                                    }
+                                });
+                                if (!response.ok) {
+                                    throw new Error(`Failed to fetch content: ${response.statusText}`);
+                                }
+                                return yield response.text();
+                            });
+                        } })));
                     return job;
                 }
                 if (job.recommended_pull_delay_ms > 0) {
                     delayIntervalMs = job.recommended_pull_delay_ms;
                 }
             }
+            throw new Error("Crawling took too long, please retry or increase the number of polling retries");
         });
     }
     crawlAsync(crawlRequest) {
@@ -157,7 +199,10 @@ class WebcrawlerClient {
                 'headers': {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${this.apiKey}`,
-                    "User-Agent": "WebcrawlerAPI-NodeJS-Client"
+                    "User-Agent": "WebcrawlerAPI-NodeJS-Client",
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
                 }
             };
             const response = yield fetch(url, requestOptions);

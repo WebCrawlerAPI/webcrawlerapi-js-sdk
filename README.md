@@ -29,6 +29,11 @@ async function main() {
             "scrape_type": "markdown"
         }
     )
+    for (const item of syncJob.job_items) {
+        item.getContent().then((content) => {
+            console.log(content.slice(0, 100));
+        })
+    }
     console.log(syncJob);
 
     // or async - get the job id and then poll the job status and get the data

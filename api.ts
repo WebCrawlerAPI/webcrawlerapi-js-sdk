@@ -87,8 +87,12 @@ export class WebcrawlerClient {
         const requestOptions = {
             'method': 'GET',
             'headers': {
+                'Content-Type': 'application/json',
                 'Authorization': `Bearer ${this.apiKey}`,
-                "User-Agent": "WebcrawlerAPI-NodeJS-Client"
+                "User-Agent": "WebcrawlerAPI-NodeJS-Client",
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             },
         };
         const response = await fetch(url, requestOptions);
@@ -116,7 +120,10 @@ export class WebcrawlerClient {
             'headers': {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${this.apiKey}`,
-                "User-Agent": "WebcrawlerAPI-NodeJS-Client"
+                "User-Agent": "WebcrawlerAPI-NodeJS-Client",
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             },
             'body': JSON.stringify(crawlRequest),
         };
@@ -130,14 +137,55 @@ export class WebcrawlerClient {
         let delayIntervalMs = initialPullDelayMs;
         for (let i = 0; i < MaxPullRetries; i++) {
             await new Promise(resolve => setTimeout(resolve, delayIntervalMs));
-            const job = await this.getJob(jobIdResponse.id);
+            const timestamp = new Date().getTime();
+            const job = await this.getJob(`${jobIdResponse.id}?t=${timestamp}`);
             if (job.status !== 'in_progress' && job.status !== 'new') {
+                // Transform each job item to include getContent method
+                job.job_items = job.job_items.map(item => ({
+                    ...item,
+                    getContent: async function(): Promise<string | null> {
+                        if (this.status !== 'done') {
+                            return null;
+                        }
+
+                        let contentUrl: string | undefined;
+                        switch (job.scrape_type) {
+                            case 'html':
+                                contentUrl = this.raw_content_url;
+                                break;
+                            case 'cleaned':
+                                contentUrl = this.cleaned_content_url;
+                                break;
+                            case 'markdown':
+                                contentUrl = this.markdown_content_url;
+                                break;
+                        }
+
+                        if (!contentUrl) {
+                            return null;
+                        }
+
+                        const response = await fetch(contentUrl, {
+                            headers: {
+                                'Accept-Encoding': 'gzip, deflate, br',
+                                'Accept': '*/*'
+                            }
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`Failed to fetch content: ${response.statusText}`);
+                        }
+
+                        return await response.text();
+                    }
+                }));
                 return job;
             }
             if (job.recommended_pull_delay_ms > 0) {
                 delayIntervalMs = job.recommended_pull_delay_ms;
             }
         }
+        throw new Error("Crawling took too long, please retry or increase the number of polling retries");
     }
 
     public async crawlAsync(crawlRequest: CrawlRequest): Promise<JobId> {
@@ -162,7 +210,10 @@ export class WebcrawlerClient {
             'headers': {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${this.apiKey}`,
-                "User-Agent": "WebcrawlerAPI-NodeJS-Client"
+                "User-Agent": "WebcrawlerAPI-NodeJS-Client",
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             }
         }
         const response = await fetch(url, requestOptions);
