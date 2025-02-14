@@ -16,10 +16,10 @@ Install WebcrawlerAPI js package:
 ## Request example
 
 ```javascript
-import webcrawlerapi from "webcrawlerapi-js";
+import { WebcrawlerClient } from "webcrawlerapi-js"
 
 async function main() {
-    const client = new webcrawlerapi.WebcrawlerClient(
+    const client = new WebcrawlerClient(
         "YOUR API ACCESS KEY HERE",
     )
     // sync way - promise will be resolved with the all the data
