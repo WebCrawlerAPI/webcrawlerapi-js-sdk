@@ -10,6 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WebcrawlerClient = void 0;
+const constants_1 = require("./constants");
 const BASE_PATH = "https://api.webcrawlerapi.com";
 const initialPullDelayMs = 2000;
 const MaxPullRetries = 100;
@@ -67,7 +68,7 @@ class WebcrawlerClient {
                 if (scrapeRequest.debug) {
                     console.log(`Scrape result: ${JSON.stringify(scrapeResult)}`);
                 }
-                if (scrapeResult.status !== 'in_progress' && scrapeResult.status !== 'new') {
+                if (scrapeResult.status !== constants_1.JobStatus.IN_PROGRESS && scrapeResult.status !== constants_1.JobStatus.NEW) {
                     return scrapeResult;
                 }
                 if (scrapeResult.recommended_pull_delay_ms > 0) {
@@ -134,11 +135,11 @@ class WebcrawlerClient {
                 yield new Promise(resolve => setTimeout(resolve, delayIntervalMs));
                 const timestamp = new Date().getTime();
                 const job = yield this.getJob(`${jobIdResponse.id}?t=${timestamp}`);
-                if (job.status !== 'in_progress' && job.status !== 'new') {
+                if (job.status !== constants_1.JobStatus.IN_PROGRESS && job.status !== constants_1.JobStatus.NEW) {
                     // Transform each job item to include getContent method
                     job.job_items = job.job_items.map(item => (Object.assign(Object.assign({}, item), { getContent: function () {
                             return __awaiter(this, void 0, void 0, function* () {
-                                if (this.status !== 'done') {
+                                if (job.status !== constants_1.JobStatus.DONE || this.status !== constants_1.JobStatus.DONE) {
                                     return null;
                                 }
                                 let contentUrl;

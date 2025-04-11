@@ -79,6 +79,7 @@ main().catch(console.error);
       status: 'new',
       title: '',
       last_error: '',
+      error_code: '',
       created_at: '2024-12-28T21:36:04.468Z',
       updated_at: '2024-12-28T21:36:04.435Z',
       cost: 0,

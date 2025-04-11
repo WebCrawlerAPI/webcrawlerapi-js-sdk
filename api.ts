@@ -1,4 +1,5 @@
 import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse} from "./model";
+import { JobStatus } from "./constants";
 
 const BASE_PATH = "https://api.webcrawlerapi.com"
 const initialPullDelayMs = 2000
@@ -67,7 +68,7 @@ export class WebcrawlerClient {
             if (scrapeRequest.debug) {
                 console.log(`Scrape result: ${JSON.stringify(scrapeResult)}`);
             }
-            if (scrapeResult.status !== 'in_progress' && scrapeResult.status !== 'new') {
+            if (scrapeResult.status !== JobStatus.IN_PROGRESS && scrapeResult.status !== JobStatus.NEW) {
                 return scrapeResult;
             }
             if (scrapeResult.recommended_pull_delay_ms > 0) {
@@ -139,12 +140,12 @@ export class WebcrawlerClient {
             await new Promise(resolve => setTimeout(resolve, delayIntervalMs));
             const timestamp = new Date().getTime();
             const job = await this.getJob(`${jobIdResponse.id}?t=${timestamp}`);
-            if (job.status !== 'in_progress' && job.status !== 'new') {
+            if (job.status !== JobStatus.IN_PROGRESS && job.status !== JobStatus.NEW) {
                 // Transform each job item to include getContent method
                 job.job_items = job.job_items.map(item => ({
                     ...item,
                     getContent: async function(): Promise<string | null> {
-                        if (this.status !== 'done') {
+                        if (job.status !== JobStatus.DONE || this.status !== JobStatus.DONE) {
                             return null;
                         }
 
