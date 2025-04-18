@@ -2,3 +2,6 @@
 .cursorrules
 
 .DS_Store
+
+.dist
+.eslintcache

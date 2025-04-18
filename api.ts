@@ -1,5 +1,6 @@
 import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse} from "./model";
 import { JobStatus } from "./constants";
+import { WebcrawlerApiError, createErrorFromResponse } from "./errors";
 
 const BASE_PATH = "https://api.webcrawlerapi.com"
 const initialPullDelayMs = 2000
@@ -29,18 +30,7 @@ export class WebcrawlerClient {
             'body': JSON.stringify(scrapeRequest),
         };
 
-        const response = await fetch(url, requestOptions);
-        if (response.ok) {
-            return response.json();
-        }
-        try {
-            const data = await response.json();
-            throw new Error(
-                `failed to scrape, response returned ${response.status} ${response.statusText}: ${data?.error}`
-            );
-        } catch (e) {
-            throw e;
-        }
+        return await this.sendRequest(url, requestOptions);
     }
 
     public async scrapeWithMeta(scrapeRequest: ScrapeRequest, maxPollingRetries: number = MaxPullRetries): Promise<ScrapeResponse> {
@@ -58,7 +48,7 @@ export class WebcrawlerClient {
         const jobIdResponse: JobId = await this.sendRequest(url, requestOptions);
 
         if (jobIdResponse.id === '') {
-            throw new Error("Failed to fetch job status");
+            throw new WebcrawlerApiError('invalid_response', 'Failed to fetch job status', 0);
         }
 
         let delayIntervalMs = initialPullDelayMs;
@@ -75,7 +65,7 @@ export class WebcrawlerClient {
                 delayIntervalMs = scrapeResult.recommended_pull_delay_ms;
             }
         }
-        throw new Error("Scraping took too long, please retry or increase the number of polling retries");
+        throw new WebcrawlerApiError('timeout', 'Scraping took too long, please retry or increase the number of polling retries', 0);
     }
 
     public async scrape(scrapeRequest: ScrapeRequest, maxPollingRetries: number = MaxPullRetries): Promise<any> {
@@ -96,21 +86,7 @@ export class WebcrawlerClient {
                 'Expires': '0'
             },
         };
-        const response = await fetch(url, requestOptions);
-        if (response.ok) {
-            return response.json();
-        }
-
-        try {
-            const data = await response.json();
-            throw new Error(
-                `failed to fetch job status ${response.status} ${response.statusText}: ${JSON.stringify(data)}`
-            );
-        } catch (e) {
-            throw new Error(
-                `failed to fetch job status ${response.status} ${response.statusText}`
-            );
-        }
+        return await this.sendRequest(url, requestOptions);
     }
 
     public async crawl(crawlRequest: CrawlRequest): Promise<Job> {
@@ -132,7 +108,7 @@ export class WebcrawlerClient {
         const jobIdResponse: JobId = await this.sendRequest(url, requestOptions);
 
         if (jobIdResponse.id === '') {
-            throw new Error("Failed to fetch job status");
+            throw new WebcrawlerApiError('invalid_response', 'Failed to fetch job status', 0);
         }
 
         let delayIntervalMs = initialPullDelayMs;
@@ -186,7 +162,7 @@ export class WebcrawlerClient {
                 delayIntervalMs = job.recommended_pull_delay_ms;
             }
         }
-        throw new Error("Crawling took too long, please retry or increase the number of polling retries");
+        throw new WebcrawlerApiError('timeout', 'Crawling took too long, please retry or increase the number of polling retries', 0);
     }
 
     public async crawlAsync(crawlRequest: CrawlRequest): Promise<JobId> {
@@ -216,36 +192,35 @@ export class WebcrawlerClient {
                 'Pragma': 'no-cache',
                 'Expires': '0'
             }
-        }
-        const response = await fetch(url, requestOptions);
-        if (response.ok) {
-            return response.json();
-        }
-
-        try {
-            const data = await response.json();
-            throw new Error(
-                `failed to fetch job status ${response.status} ${response.statusText}: ${JSON.stringify(data)}`
-            );
-        } catch (e) {
-            throw new Error(
-                `failed to fetch job status ${response.status} ${response.statusText}`
-            );
-        }
+        };
+        return await this.sendRequest(url, requestOptions);
     }
-
 
     private async sendRequest(url: string, requestOptions: any): Promise<any> {
         let response: Response;
         try {
             response = await fetch(url, requestOptions);
         } catch (e) {
-            throw new Error(`Failed to send request: ${e}`);
+            throw new WebcrawlerApiError('network_error', `Failed to send request: ${e}`, 0);
         }
+
         if (!response.ok) {
-            const errorResponse = await response.json();
-            throw new Error(`${JSON.stringify(errorResponse)}`);
+            try {
+                const errorData = await response.json();
+                throw createErrorFromResponse(response, errorData);
+            } catch (e) {
+                if (e instanceof WebcrawlerApiError) {
+                    throw e;
+                }
+                // If we can't parse the error response, create a generic error
+                throw new WebcrawlerApiError(
+                    'unknown_error',
+                    `Request failed with status ${response.status} ${response.statusText}`,
+                    response.status
+                );
+            }
         }
+
         return response.json();
     }
 }

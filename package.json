@@ -1,8 +1,8 @@
 {
   "name": "webcrawlerapi-js",
-  "version": "1.0.9",
+  "version": "1.0.10",
 
-  "description": "JS client for WecrawlerAPI",
+  "description": "JS client for WebcrawlerAPI",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
