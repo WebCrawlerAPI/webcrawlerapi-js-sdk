@@ -1,6 +1,6 @@
 import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse} from "./model";
 import { JobStatus } from "./constants";
-import { WebcrawlerApiError, createErrorFromResponse } from "./errors";
+import { WebcrawlerApiError, createErrorFromResponse, ErrorResponse } from "./errors";
 
 const BASE_PATH = "https://api.webcrawlerapi.com"
 const initialPullDelayMs = 2000
@@ -206,7 +206,7 @@ export class WebcrawlerClient {
 
         if (!response.ok) {
             try {
-                const errorData = await response.json();
+                const errorData = await response.json() as ErrorResponse;
                 throw createErrorFromResponse(response, errorData);
             } catch (e) {
                 if (e instanceof WebcrawlerApiError) {
