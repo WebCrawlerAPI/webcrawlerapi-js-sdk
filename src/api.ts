@@ -6,6 +6,9 @@ const BASE_PATH = "https://api.webcrawlerapi.com"
 const initialPullDelayMs = 2000
 const MaxPullRetries = 100
 
+export { WebcrawlerApiError, JobStatus };
+export * from "./model";
+
 export class WebcrawlerClient {
     protected apiVersion: string = "v1";
     protected apiKey: string
