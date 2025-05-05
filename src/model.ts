@@ -21,7 +21,7 @@ export interface ScrapeResponse {
 }
 
 export interface CrawlRequest {
-    url: string;
+    url?: string;
     crawler_id?: string;
     items_limit?: number;
     scrape_type?: string;
