@@ -182,7 +182,7 @@ try {
 
 Example of a job response. The response structure is carefully designed to provide comprehensive information about your scraping job, including detailed status updates, timing information, and resource usage metrics.
 
-```json
+```js
 {
   id: '49c4942b-b7d9-4d62-94b5-b54a3016ac51',
   url: 'https://stripe.com/',
