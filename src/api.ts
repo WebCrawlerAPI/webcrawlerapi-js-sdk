@@ -1,4 +1,4 @@
-import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse} from "./model";
+import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse, Action} from "./model";
 import { JobStatus } from "./constants";
 import { WebcrawlerApiError, createErrorFromResponse, ErrorResponse } from "./errors";
 
@@ -92,8 +92,13 @@ export class WebcrawlerClient {
         return await this.sendRequest(url, requestOptions);
     }
 
-    public async crawl(crawlRequest: CrawlRequest): Promise<Job> {
+    public async crawl(crawlRequest: CrawlRequest, actions?: Action | Action[]): Promise<Job> {
         const url = `${this.basePath}/${this.apiVersion}/crawl`;
+
+        const requestBody = {
+            ...crawlRequest,
+            actions: actions ? (Array.isArray(actions) ? actions : [actions]) : undefined
+        };
 
         const requestOptions = {
             'method': 'POST',
@@ -105,7 +110,7 @@ export class WebcrawlerClient {
                 'Pragma': 'no-cache',
                 'Expires': '0'
             },
-            'body': JSON.stringify(crawlRequest),
+            'body': JSON.stringify(requestBody),
         };
 
         const jobIdResponse: JobId = await this.sendRequest(url, requestOptions);
@@ -168,8 +173,13 @@ export class WebcrawlerClient {
         throw new WebcrawlerApiError('timeout', 'Crawling took too long, please retry or increase the number of polling retries', 0);
     }
 
-    public async crawlAsync(crawlRequest: CrawlRequest): Promise<JobId> {
+    public async crawlAsync(crawlRequest: CrawlRequest, actions?: Action | Action[]): Promise<JobId> {
         const url = `${this.basePath}/${this.apiVersion}/crawl`;
+
+        const requestBody = {
+            ...crawlRequest,
+            actions: actions ? (Array.isArray(actions) ? actions : [actions]) : undefined
+        };
 
         const requestOptions = {
             'method': 'POST',
@@ -177,7 +187,7 @@ export class WebcrawlerClient {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${this.apiKey}`
             },
-            'body': JSON.stringify(crawlRequest),
+            'body': JSON.stringify(requestBody),
         };
 
         return await this.sendRequest(url, requestOptions);

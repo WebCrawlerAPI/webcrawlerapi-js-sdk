@@ -29,6 +29,7 @@ export interface CrawlRequest {
     blacklist_regexp?: string;
     allow_subdomains?: boolean;
     webhook_url?: string;
+    actions?: Action[];
 }
 
 export interface Job {
@@ -65,4 +66,17 @@ export interface JobItem {
     raw_content_url?: string;
     cleaned_content_url?: string;
     getContent(): Promise<string | null>;
+}
+
+export interface Action {
+    type: string;
+}
+
+export interface UploadS3Action extends Action {
+    type: 'upload_s3';
+    path: string;
+    access_key_id: string;
+    secret_access_key: string;
+    bucket: string;
+    endpoint?: string;
 }
