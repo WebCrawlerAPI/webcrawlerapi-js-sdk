@@ -1,4 +1,4 @@
-import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse, Action} from "./model";
+import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse, Action, JobItem} from "./model";
 import { JobStatus } from "./constants";
 import { WebcrawlerApiError, createErrorFromResponse, ErrorResponse } from "./errors";
 
@@ -8,6 +8,50 @@ const MaxPullRetries = 100
 
 export { WebcrawlerApiError, JobStatus };
 export * from "./model";
+
+// Helper function to add getContent method to job items
+function addGetContentMethod(job: Job): Job {
+    // Transform each job item to include getContent method
+    job.job_items = job.job_items.map(item => ({
+        ...item,
+        getContent: async function(): Promise<string | null> {
+            if (job.status !== JobStatus.DONE || this.status !== JobStatus.DONE) {
+                return null;
+            }
+
+            let contentUrl: string | undefined;
+            switch (job.scrape_type) {
+                case 'html':
+                    contentUrl = this.raw_content_url;
+                    break;
+                case 'cleaned':
+                    contentUrl = this.cleaned_content_url;
+                    break;
+                case 'markdown':
+                    contentUrl = this.markdown_content_url;
+                    break;
+            }
+
+            if (!contentUrl) {
+                return null;
+            }
+
+            const response = await fetch(contentUrl, {
+                headers: {
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Accept': '*/*'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch content: ${response.statusText}`);
+            }
+
+            return await response.text();
+        }
+    }));
+    return job;
+}
 
 export class WebcrawlerClient {
     protected apiVersion: string = "v1";
@@ -125,45 +169,6 @@ export class WebcrawlerClient {
             const timestamp = new Date().getTime();
             const job = await this.getJob(`${jobIdResponse.id}?t=${timestamp}`);
             if (job.status !== JobStatus.IN_PROGRESS && job.status !== JobStatus.NEW) {
-                // Transform each job item to include getContent method
-                job.job_items = job.job_items.map(item => ({
-                    ...item,
-                    getContent: async function(): Promise<string | null> {
-                        if (job.status !== JobStatus.DONE || this.status !== JobStatus.DONE) {
-                            return null;
-                        }
-
-                        let contentUrl: string | undefined;
-                        switch (job.scrape_type) {
-                            case 'html':
-                                contentUrl = this.raw_content_url;
-                                break;
-                            case 'cleaned':
-                                contentUrl = this.cleaned_content_url;
-                                break;
-                            case 'markdown':
-                                contentUrl = this.markdown_content_url;
-                                break;
-                        }
-
-                        if (!contentUrl) {
-                            return null;
-                        }
-
-                        const response = await fetch(contentUrl, {
-                            headers: {
-                                'Accept-Encoding': 'gzip, deflate, br',
-                                'Accept': '*/*'
-                            }
-                        });
-
-                        if (!response.ok) {
-                            throw new Error(`Failed to fetch content: ${response.statusText}`);
-                        }
-
-                        return await response.text();
-                    }
-                }));
                 return job;
             }
             if (job.recommended_pull_delay_ms > 0) {
@@ -206,7 +211,8 @@ export class WebcrawlerClient {
                 'Expires': '0'
             }
         };
-        return await this.sendRequest(url, requestOptions);
+        const job = await this.sendRequest(url, requestOptions);
+        return addGetContentMethod(job);
     }
 
     private async sendRequest(url: string, requestOptions: any): Promise<any> {
