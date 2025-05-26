@@ -1,15 +1,18 @@
-import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse, Action, JobItem} from "./model";
+import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse, ScrapeResponseError, ScrapeId, Action, JobItem} from "./model";
 import { JobStatus } from "./constants";
 import { WebcrawlerApiError, createErrorFromResponse, ErrorResponse } from "./errors";
 
 const BASE_PATH = "https://api.webcrawlerapi.com"
 const initialPullDelayMs = 2000
 const MaxPullRetries = 100
+const DEFAULT_POLL_DELAY_SECONDS = 2
 
 export { WebcrawlerApiError, JobStatus };
 export * from "./model";
 
-// Helper function to add getContent method to job items
+const SCRAPE_VERSION = "v2"
+
+
 function addGetContentMethod(job: Job): Job {
     // Transform each job item to include getContent method
     job.job_items = job.job_items.map(item => ({
@@ -64,9 +67,10 @@ export class WebcrawlerClient {
         this.apiVersion = apiVersion;
     }
 
-    public async scrapeAsync(scrapeRequest: ScrapeRequest): Promise<JobId> {
-        const url = `${this.basePath}/${this.apiVersion}/scrape`;
-
+    public async scrapeAsync(
+        request: ScrapeRequest
+    ): Promise<ScrapeId> {
+        const apiUrl = `${this.basePath}/${SCRAPE_VERSION}/scrape?async=true`;
         const requestOptions = {
             'method': 'POST',
             'headers': {
@@ -74,54 +78,15 @@ export class WebcrawlerClient {
                 'Authorization': `Bearer ${this.apiKey}`,
                 "User-Agent": "WebcrawlerAPI-NodeJS-Client"
             },
-            'body': JSON.stringify(scrapeRequest),
+            'body': JSON.stringify(request),
         };
 
-        return await this.sendRequest(url, requestOptions);
+        const response = await this.sendRequest(apiUrl, requestOptions);
+        return { id: response.id };
     }
 
-    public async scrapeWithMeta(scrapeRequest: ScrapeRequest, maxPollingRetries: number = MaxPullRetries): Promise<ScrapeResponse> {
-        const url = `${this.basePath}/${this.apiVersion}/scrape`;
-
-        const requestOptions = {
-            'method': 'POST',
-            'headers': {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.apiKey}`
-            },
-            'body': JSON.stringify(scrapeRequest),
-        };
-
-        const jobIdResponse: JobId = await this.sendRequest(url, requestOptions);
-
-        if (jobIdResponse.id === '') {
-            throw new WebcrawlerApiError('invalid_response', 'Failed to fetch job status', 0);
-        }
-
-        let delayIntervalMs = initialPullDelayMs;
-        for (let i = 0; i < maxPollingRetries; i++) {
-            await new Promise(resolve => setTimeout(resolve, delayIntervalMs));
-            const scrapeResult = await this.getScrapeResult(jobIdResponse.id);
-            if (scrapeRequest.debug) {
-                console.log(`Scrape result: ${JSON.stringify(scrapeResult)}`);
-            }
-            if (scrapeResult.status !== JobStatus.IN_PROGRESS && scrapeResult.status !== JobStatus.NEW) {
-                return scrapeResult;
-            }
-            if (scrapeResult.recommended_pull_delay_ms > 0) {
-                delayIntervalMs = scrapeResult.recommended_pull_delay_ms;
-            }
-        }
-        throw new WebcrawlerApiError('timeout', 'Scraping took too long, please retry or increase the number of polling retries', 0);
-    }
-
-    public async scrape(scrapeRequest: ScrapeRequest, maxPollingRetries: number = MaxPullRetries): Promise<any> {
-        const scrapeResult = await this.scrapeWithMeta(scrapeRequest, maxPollingRetries);
-        return scrapeResult.structured_data;
-    }
-
-    public async getScrapeResult(scrapeID: string): Promise<ScrapeResponse> {
-        const url = `${this.basePath}/${this.apiVersion}/scrape/${scrapeID}`;
+    public async getScrape(scrapeId: string): Promise<ScrapeResponse | ScrapeResponseError> {
+        const url = `${this.basePath}/${SCRAPE_VERSION}/scrape/${scrapeId}`;
         const requestOptions = {
             'method': 'GET',
             'headers': {
@@ -133,7 +98,56 @@ export class WebcrawlerClient {
                 'Expires': '0'
             },
         };
-        return await this.sendRequest(url, requestOptions);
+
+        const responseData = await this.sendRequest(url, requestOptions);
+        const status = responseData.status;
+
+        if (status === "done") {
+            return responseData;
+        } else if (status === "error") {
+            return responseData;
+        } else {
+            // in_progress or any other status
+            return {
+                success: false,
+                status: status,
+                page_status_code: 0
+            };
+        }
+    }
+
+    public async scrape(
+        request: ScrapeRequest,
+        maxPolls: number = 100
+    ): Promise<ScrapeResponse | ScrapeResponseError> {
+        // Start the scraping job
+        const scrapeIdResponse = await this.scrapeAsync(request);
+
+        const scrapeId = scrapeIdResponse.id;
+        let polls = 0;
+        let result: ScrapeResponse | ScrapeResponseError;
+
+        while (polls < maxPolls) {
+            result = await this.getScrape(scrapeId);
+
+            // Return immediately if scrape is done
+            if ('status' in result && result.status === "done") {
+                return result;
+            }
+
+            // Return immediately if there's an error
+            if ('error_code' in result) {
+                return result;
+            }
+
+            // Continue polling if status is in_progress or any other non-terminal status
+            // Wait before next poll
+            await new Promise(resolve => setTimeout(resolve, DEFAULT_POLL_DELAY_SECONDS * 1000));
+            polls++;
+        }
+
+        // Return the last known state if maxPolls is reached
+        return result!;
     }
 
     public async crawl(crawlRequest: CrawlRequest, actions?: Action | Action[]): Promise<Job> {

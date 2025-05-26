@@ -1,23 +1,36 @@
 export interface ScrapeRequest {
-    input: any;
-    crawler_id: string;
-    max_retries?: number;
-    debug?: boolean;
-    omit_cache?: boolean;
+    url: string;
+    output_format: string;
+    webhook_url?: string;
+    clean_selectors?: string;
+    actions?: Action[];
+    prompt?: string;
 }
 
-export interface JobId {
+export interface ScrapeId {
     id: string;
 }
 
 export interface ScrapeResponse {
-    id: string;
-    url: string;
-    status: any;
+    success: boolean;
+    status?: string;
+    markdown?: string;
+    cleaned_content?: string;
+    raw_content?: string;
     page_status_code: number;
-    created_at: string;
-    structured_data: any;
-    recommended_pull_delay_ms: number;
+    page_title?: string;
+    structured_data?: any;
+}
+
+export interface ScrapeResponseError {
+    success: boolean;
+    error_code: string;
+    error_message: string;
+    status?: string;
+}
+
+export interface JobId {
+    id: string;
 }
 
 export interface CrawlRequest {
