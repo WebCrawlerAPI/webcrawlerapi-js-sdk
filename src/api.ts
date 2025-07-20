@@ -1,5 +1,5 @@
 import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse, ScrapeResponseError, ScrapeId, Action, JobItem} from "./model";
-import { JobStatus } from "./constants";
+import { JobStatus, ErrorCode } from "./constants";
 import { WebcrawlerApiError, createErrorFromResponse, ErrorResponse } from "./errors";
 
 const BASE_PATH = "https://api.webcrawlerapi.com"
@@ -7,7 +7,7 @@ const initialPullDelayMs = 2000
 const MaxPullRetries = 100
 const DEFAULT_POLL_DELAY_SECONDS = 2
 
-export { WebcrawlerApiError, JobStatus };
+export { WebcrawlerApiError, JobStatus, ErrorCode };
 export * from "./model";
 
 const SCRAPE_VERSION = "v2"

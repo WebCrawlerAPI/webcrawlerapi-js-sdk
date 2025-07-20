@@ -1,0 +1,66 @@
+name: Publish to NPM
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Required for provenance
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          
+      - name: Cache pnpm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+          
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        
+      - name: Build package
+        run: pnpm run build
+        
+      - name: Validate tag matches package.json version
+        run: |
+          # Extract version from tag (remove 'v' prefix if present)
+          TAG_VERSION=${GITHUB_REF_NAME#v}
+          echo "Tag version: $TAG_VERSION"
+          
+          # Get version from package.json
+          PACKAGE_VERSION=$(jq -r '.version' package.json)
+          echo "Package.json version: $PACKAGE_VERSION"
+          
+          # Compare versions
+          if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "Error: Tag version ($TAG_VERSION) does not match package.json version ($PACKAGE_VERSION)"
+            echo "Please ensure the tag version matches the version in package.json"
+            exit 1
+          else
+            echo "✓ Tag version matches package.json version: $TAG_VERSION"
+          fi
+        
+      - name: Publish to NPM
+        run: pnpm publish --provenance --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

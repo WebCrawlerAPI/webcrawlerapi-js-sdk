@@ -4,6 +4,10 @@ export const JobStatus = {
     DONE: 'done'
 } as const;
 
+export const ErrorCode = {
+    BLOCKED_BY_ROBOTS_TXT: 'blocked_by_robots_txt'
+} as const;
+
 export const HttpStatus = {
     OK: 200,
     BAD_REQUEST: 400,

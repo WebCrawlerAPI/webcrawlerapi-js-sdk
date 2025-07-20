@@ -5,6 +5,7 @@ export interface ScrapeRequest {
     clean_selectors?: string;
     actions?: Action[];
     prompt?: string;
+    respect_robots_txt?: boolean;
 }
 
 export interface ScrapeId {
@@ -43,6 +44,7 @@ export interface CrawlRequest {
     allow_subdomains?: boolean;
     webhook_url?: string;
     actions?: Action[];
+    respect_robots_txt?: boolean;
 }
 
 export interface Job {
