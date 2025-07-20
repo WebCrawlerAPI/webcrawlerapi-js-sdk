@@ -28,5 +28,9 @@
   },
   "author": "WebcrawlerAPI <sdk@webcrawlerapi.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/WebCrawlerAPI/webcrawlerapi-js-sdk"
+  },
   "dependencies": {}
 }
