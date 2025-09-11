@@ -1,11 +1,12 @@
 export interface ScrapeRequest {
     url: string;
-    output_format: string;
+    output_format?: string;
     webhook_url?: string;
     clean_selectors?: string;
     actions?: Action[];
     prompt?: string;
     respect_robots_txt?: boolean;
+    main_content_only?: boolean;
 }
 
 export interface ScrapeId {
@@ -45,6 +46,7 @@ export interface CrawlRequest {
     webhook_url?: string;
     actions?: Action[];
     respect_robots_txt?: boolean;
+    main_content_only?: boolean;
 }
 
 export interface Job {
