@@ -47,6 +47,7 @@ export interface CrawlRequest {
     actions?: Action[];
     respect_robots_txt?: boolean;
     main_content_only?: boolean;
+    max_depth?: number;
 }
 
 export interface Job {
@@ -59,6 +60,7 @@ export interface Job {
     blacklist_regexp: string;
     allow_subdomains: boolean;
     items_limit: number;
+    max_depth?: number;
     created_at: string;
     finished_at: string;
     updated_at: string;
@@ -80,6 +82,7 @@ export interface JobItem {
     updated_at: string;
     cost: number;
     referred_url: string;
+    depth?: number;
     raw_content_url?: string;
     cleaned_content_url?: string;
     getContent(): Promise<string | null>;
