@@ -1,7 +1,6 @@
 {
   "name": "webcrawlerapi-js",
-  "version": "2.0.3",
-
+  "version": "2.0.4",
   "description": "JS client for WebcrawlerAPI",
   "main": "./dist/api.js",
   "types": "./dist/@types/api.d.ts",
@@ -31,6 +30,5 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/WebCrawlerAPI/webcrawlerapi-js-sdk"
-  },
-  "dependencies": {}
+  }
 }
