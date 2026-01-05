@@ -150,6 +150,25 @@ export class WebcrawlerClient {
         return result!;
     }
 
+    public async crawlRawMarkdown(crawlRequest: CrawlRequest, actions?: Action | Action[]): Promise<string> {
+        const markdownRequest = {
+            ...crawlRequest,
+            scrape_type: crawlRequest.scrape_type ?? 'markdown'
+        };
+
+        const job = await this.crawl(markdownRequest, actions);
+
+        if (job.status !== JobStatus.DONE) {
+            throw new WebcrawlerApiError('job_not_done', `Job finished with status ${job.status}`, 0);
+        }
+
+        if (job.scrape_type !== 'markdown') {
+            throw new WebcrawlerApiError('invalid_scrape_type', 'CrawlRawMarkdown requires scrape_type to be markdown', 0);
+        }
+
+        return this.getJobMarkdown(job.id);
+    }
+
     public async crawl(crawlRequest: CrawlRequest, actions?: Action | Action[]): Promise<Job> {
         const url = `${this.basePath}/${this.apiVersion}/crawl`;
 
@@ -229,6 +248,47 @@ export class WebcrawlerClient {
         return addGetContentMethod(job);
     }
 
+    public async getJobMarkdown(jobID: string): Promise<string> {
+        const url = `${this.basePath}/${this.apiVersion}/job/${jobID}/markdown`;
+        const requestOptions = {
+            'method': 'GET',
+            'headers': {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`,
+                "User-Agent": "WebcrawlerAPI-NodeJS-Client",
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        };
+
+        let response: Response;
+        try {
+            response = await fetch(url, requestOptions);
+        } catch (e) {
+            throw new WebcrawlerApiError('network_error', `Failed to send request: ${e}`, 0);
+        }
+
+        if (!response.ok) {
+            try {
+                const errorData = await response.json() as ErrorResponse;
+                throw createErrorFromResponse(response, errorData);
+            } catch (e) {
+                if (e instanceof WebcrawlerApiError) {
+                    throw e;
+                }
+
+                throw new WebcrawlerApiError(
+                    'unknown_error',
+                    `Request failed with status ${response.status} ${response.statusText}`,
+                    response.status
+                );
+            }
+        }
+
+        return response.text();
+    }
+
     private async sendRequest(url: string, requestOptions: any): Promise<any> {
         let response: Response;
         try {
@@ -257,6 +317,5 @@ export class WebcrawlerClient {
         return response.json();
     }
 }
-
 
 

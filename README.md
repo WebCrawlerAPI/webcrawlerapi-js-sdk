@@ -18,6 +18,7 @@ Install WebcrawlerAPI js package:
 The package is regularly updated with new features and improvements to ensure the best possible scraping experience.
 
 ## JavaScript Examples
+Use `crawlRawMarkdown` when you want a crawl to finish and immediately return the combined `/job/{id}/markdown` content.
 
 ### Synchronous Job
 In this mode, the promise will be resolved when all data is ready. Synchronous jobs are perfect for quick scraping tasks where you need immediate results and don't want to handle polling logic. However, for long running jobs we recommend to use async crawling or the webhook.
