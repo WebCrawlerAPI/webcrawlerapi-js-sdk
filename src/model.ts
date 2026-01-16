@@ -7,6 +7,7 @@ export interface ScrapeRequest {
     prompt?: string;
     respect_robots_txt?: boolean;
     main_content_only?: boolean;
+    max_age?: number;
 }
 
 export interface ScrapeId {
@@ -42,12 +43,12 @@ export interface CrawlRequest {
     scrape_type?: string;
     whitelist_regexp?: string;
     blacklist_regexp?: string;
-    allow_subdomains?: boolean;
     webhook_url?: string;
     actions?: Action[];
     respect_robots_txt?: boolean;
     main_content_only?: boolean;
     max_depth?: number;
+    max_age?: number;
 }
 
 export interface Job {
@@ -58,7 +59,6 @@ export interface Job {
     scrape_type: string;
     whitelist_regexp: string;
     blacklist_regexp: string;
-    allow_subdomains: boolean;
     items_limit: number;
     max_depth?: number;
     created_at: string;

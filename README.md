@@ -152,7 +152,6 @@ Example of a job response. The response structure is carefully designed to provi
   scrape_type: 'markdown',
   whitelist_regexp: '',
   blacklist_regexp: '',
-  allow_subdomains: false,
   items_limit: 10,
   created_at: '2024-12-28T21:36:04.417Z',
   finished_at: null,
