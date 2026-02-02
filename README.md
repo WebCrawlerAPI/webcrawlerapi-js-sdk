@@ -27,7 +27,7 @@ In this mode, the promise will be resolved when all data is ready. Synchronous j
 import webcrawlerapi from "webcrawlerapi-js"
 
 async function main() {
-    const client = new WebcrawlerClient("YOUR API ACCESS KEY HERE")
+    const client = new webcrawlerapi.WebcrawlerClient("YOUR API ACCESS KEY HERE")
 
     try {
         const crawlJob = await client.crawl({
@@ -64,7 +64,7 @@ In this mode, you get a job ID immediately and can poll for results. Asynchronou
 import webcrawlerapi from "webcrawlerapi-js"
 
 async function main() {
-    const client = new WebcrawlerClient("YOUR API ACCESS KEY HERE")
+    const client = new webcrawlerapi.WebcrawlerClient("YOUR API ACCESS KEY HERE")
 
     try {
         try {
@@ -115,7 +115,7 @@ The SDK provides full TypeScript support with type safety and error handling. Ou
 import {WebcrawlerClient, WebcrawlerApiError} from "webcrawlerapi-js";
 
 async function main() {
-    const client = new WebcrawlerClient("YOUR_API_KEY")
+    const client = new webcrawlerapi.WebcrawlerClient("YOUR_API_KEY")
 
     try {
         // Basic crawl with markdown
