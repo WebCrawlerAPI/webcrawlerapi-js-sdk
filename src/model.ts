@@ -5,6 +5,7 @@ export interface ScrapeRequest {
     clean_selectors?: string;
     actions?: Action[];
     prompt?: string;
+    response_schema?: Record<string, any>;
     respect_robots_txt?: boolean;
     main_content_only?: boolean;
     max_age?: number;
@@ -23,6 +24,7 @@ export interface ScrapeResponse {
     page_status_code: number;
     page_title?: string;
     structured_data?: any;
+    links?: string[];
 }
 
 export interface ScrapeResponseError {
@@ -85,6 +87,7 @@ export interface JobItem {
     depth?: number;
     raw_content_url?: string;
     cleaned_content_url?: string;
+    error_code?: string;
     getContent(): Promise<string | null>;
 }
 
