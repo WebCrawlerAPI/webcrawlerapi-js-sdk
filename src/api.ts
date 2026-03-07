@@ -1,4 +1,4 @@
-import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse, ScrapeResponseError, ScrapeId, Action, JobItem} from "./model";
+import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse, ScrapeResponseError, ScrapeId, Action, JobItem, JobMarkdownResponse} from "./model";
 import { JobStatus, ErrorCode } from "./constants";
 import { WebcrawlerApiError, createErrorFromResponse, ErrorResponse } from "./errors";
 
@@ -166,7 +166,7 @@ export class WebcrawlerClient {
             throw new WebcrawlerApiError('invalid_scrape_type', 'CrawlRawMarkdown requires scrape_type to be markdown', 0);
         }
 
-        return this.getJobMarkdown(job.id);
+        return this.getJobMarkdownContent(job.id);
     }
 
     public async crawl(crawlRequest: CrawlRequest, actions?: Action | Action[]): Promise<Job> {
@@ -248,8 +248,24 @@ export class WebcrawlerClient {
         return addGetContentMethod(job);
     }
 
-    public async getJobMarkdown(jobID: string): Promise<string> {
+    public async getJobMarkdown(jobID: string): Promise<JobMarkdownResponse> {
         const url = `${this.basePath}/${this.apiVersion}/job/${jobID}/markdown`;
+        const requestOptions = {
+            'method': 'GET',
+            'headers': {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`,
+                "User-Agent": "WebcrawlerAPI-NodeJS-Client",
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        };
+        return this.sendRequest(url, requestOptions);
+    }
+
+    public async getJobMarkdownContent(jobID: string): Promise<string> {
+        const url = `${this.basePath}/${this.apiVersion}/job/${jobID}/markdown/content`;
         const requestOptions = {
             'method': 'GET',
             'headers': {
@@ -277,7 +293,6 @@ export class WebcrawlerClient {
                 if (e instanceof WebcrawlerApiError) {
                     throw e;
                 }
-
                 throw new WebcrawlerApiError(
                     'unknown_error',
                     `Request failed with status ${response.status} ${response.statusText}`,

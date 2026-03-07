@@ -103,3 +103,7 @@ export interface UploadS3Action extends Action {
     bucket: string;
     endpoint?: string;
 }
+
+export interface JobMarkdownResponse {
+    content_url: string;
+}
