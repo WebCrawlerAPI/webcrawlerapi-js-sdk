@@ -64,4 +64,6 @@ jobs:
           fi
         
       - name: Publish to NPM
-        run: npm publish --provenance --access public
+        run: |
+          npm config delete //registry.npmjs.org/:_authToken
+          npm publish --provenance --access public
