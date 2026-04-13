@@ -13,6 +13,47 @@ export * from "./model";
 const SCRAPE_VERSION = "v2"
 
 
+function resolveContentUrl(job: Job, item: { raw_content_url?: string; cleaned_content_url?: string; markdown_content_url?: string }): string | undefined {
+    // Prefer output_formats if present and non-empty, using priority: markdown > cleaned > html
+    if (Array.isArray(job.output_formats) && job.output_formats.length > 0) {
+        const priority = ['markdown', 'cleaned', 'html'] as const;
+        for (const fmt of priority) {
+            if (job.output_formats.includes(fmt)) {
+                switch (fmt) {
+                    case 'markdown': return item.markdown_content_url;
+                    case 'cleaned':  return item.cleaned_content_url;
+                    case 'html':     return item.raw_content_url;
+                }
+            }
+        }
+        return undefined;
+    }
+
+    // Fall back to scrape_type for backward compatibility
+    switch (job.scrape_type) {
+        case 'html':     return item.raw_content_url;
+        case 'cleaned':  return item.cleaned_content_url;
+        case 'markdown': return item.markdown_content_url;
+        default:         return undefined;
+    }
+}
+
+async function fetchContentUrl(url: string | undefined): Promise<string | null> {
+    if (!url) {
+        return null;
+    }
+    const response = await fetch(url, {
+        headers: {
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept': '*/*'
+        }
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to fetch content: ${response.statusText}`);
+    }
+    return response.text();
+}
+
 function addGetContentMethod(job: Job): Job {
     // Transform each job item to include getContent method
     job.job_items = job.job_items.map(item => ({
@@ -21,36 +62,17 @@ function addGetContentMethod(job: Job): Job {
             if (job.status !== JobStatus.DONE || this.status !== JobStatus.DONE) {
                 return null;
             }
-
-            let contentUrl: string | undefined;
-            switch (job.scrape_type) {
-                case 'html':
-                    contentUrl = this.raw_content_url;
-                    break;
-                case 'cleaned':
-                    contentUrl = this.cleaned_content_url;
-                    break;
-                case 'markdown':
-                    contentUrl = this.markdown_content_url;
-                    break;
-            }
-
-            if (!contentUrl) {
-                return null;
-            }
-
-            const response = await fetch(contentUrl, {
-                headers: {
-                    'Accept-Encoding': 'gzip, deflate, br',
-                    'Accept': '*/*'
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch content: ${response.statusText}`);
-            }
-
-            return await response.text();
+            const contentUrl = resolveContentUrl(job, this);
+            return fetchContentUrl(contentUrl);
+        },
+        getMarkdown: async function(): Promise<string | null> {
+            return fetchContentUrl(this.markdown_content_url);
+        },
+        getCleaned: async function(): Promise<string | null> {
+            return fetchContentUrl(this.cleaned_content_url);
+        },
+        getHTML: async function(): Promise<string | null> {
+            return fetchContentUrl(this.raw_content_url);
         }
     }));
     return job;
@@ -150,29 +172,11 @@ export class WebcrawlerClient {
         return result!;
     }
 
-    public async crawlRawMarkdown(crawlRequest: CrawlRequest, actions?: Action | Action[]): Promise<string> {
-        const markdownRequest = {
-            ...crawlRequest,
-            scrape_type: crawlRequest.scrape_type ?? 'markdown'
-        };
-
-        const job = await this.crawl(markdownRequest, actions);
-
-        if (job.status !== JobStatus.DONE) {
-            throw new WebcrawlerApiError('job_not_done', `Job finished with status ${job.status}`, 0);
-        }
-
-        if (job.scrape_type !== 'markdown') {
-            throw new WebcrawlerApiError('invalid_scrape_type', 'CrawlRawMarkdown requires scrape_type to be markdown', 0);
-        }
-
-        return this.getJobMarkdownContent(job.id);
-    }
-
     public async crawl(crawlRequest: CrawlRequest, actions?: Action | Action[]): Promise<Job> {
         const url = `${this.basePath}/${this.apiVersion}/crawl`;
 
         const requestBody = {
+            output_formats: ['markdown'],
             ...crawlRequest,
             actions: actions ? (Array.isArray(actions) ? actions : [actions]) : undefined
         };
@@ -215,6 +219,7 @@ export class WebcrawlerClient {
         const url = `${this.basePath}/${this.apiVersion}/crawl`;
 
         const requestBody = {
+            output_formats: ['markdown'],
             ...crawlRequest,
             actions: actions ? (Array.isArray(actions) ? actions : [actions]) : undefined
         };
