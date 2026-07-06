@@ -129,3 +129,38 @@ export interface UploadS3Action extends Action {
 export interface JobMarkdownResponse {
     content_url: string;
 }
+
+export interface AgentRunRequest {
+    /** Natural-language task for the agent to complete. */
+    prompt: string;
+    /** Optional seed URLs the agent can use while running the task. */
+    urls?: string[];
+    /** If true, the agent only uses the provided seed URLs. */
+    seed_urls_only?: boolean;
+    /** Optional JSON schema for structured agent output. */
+    output_schema?: Record<string, any>;
+    /** Model to use for the run. Omit to use the API default. */
+    model?: string;
+    /** Maximum spend for this run in USD. Required by the API. */
+    max_spend_usd: number;
+}
+
+export interface AgentRun {
+    id: string;
+    status: string;
+    prompt: string;
+    model: string;
+    data?: any;
+    error_reason?: string;
+    balance_used_usd: number;
+    max_spend_usd?: number;
+    urls?: string[];
+    created_at: string;
+    updated_at: string;
+    success: boolean;
+}
+
+export interface AgentRunList {
+    items: AgentRun[];
+    total: number;
+}

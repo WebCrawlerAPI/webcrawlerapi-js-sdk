@@ -1,4 +1,4 @@
-import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse, ScrapeResponseError, ScrapeId, Action, JobItem, JobMarkdownResponse} from "./model";
+import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse, ScrapeResponseError, ScrapeId, Action, JobMarkdownResponse, AgentRunRequest, AgentRun, AgentRunList} from "./model";
 import { JobStatus, ErrorCode } from "./constants";
 import { WebcrawlerApiError, createErrorFromResponse, ErrorResponse } from "./errors";
 
@@ -6,6 +6,7 @@ const BASE_PATH = "https://api.webcrawlerapi.com"
 const initialPullDelayMs = 2000
 const MaxPullRetries = 100
 const DEFAULT_POLL_DELAY_SECONDS = 2
+const AgentTerminalStatuses = ["done", "error", "canceled"]
 
 export { WebcrawlerApiError, JobStatus, ErrorCode };
 export * from "./model";
@@ -89,6 +90,22 @@ export class WebcrawlerClient {
         this.apiVersion = apiVersion;
     }
 
+    private getDefaultHeaders(cacheControl: boolean = false): Record<string, string> {
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.apiKey}`,
+            "User-Agent": "WebcrawlerAPI-NodeJS-Client"
+        };
+
+        if (cacheControl) {
+            headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+            headers['Pragma'] = 'no-cache';
+            headers['Expires'] = '0';
+        }
+
+        return headers;
+    }
+
     public async scrapeAsync(
         request: ScrapeRequest
     ): Promise<ScrapeId> {
@@ -105,6 +122,54 @@ export class WebcrawlerClient {
 
         const response = await this.sendRequest(apiUrl, requestOptions);
         return { id: response.id };
+    }
+
+    public async runAgentAsync(request: AgentRunRequest): Promise<AgentRun> {
+        const url = `${this.basePath}/${this.apiVersion}/agent`;
+        const requestOptions = {
+            'method': 'POST',
+            'headers': this.getDefaultHeaders(),
+            'body': JSON.stringify(request),
+        };
+
+        return await this.sendRequest(url, requestOptions);
+    }
+
+    public async getAgentJob(jobID: string): Promise<AgentRun> {
+        const url = `${this.basePath}/${this.apiVersion}/agent/job/${jobID}`;
+        const requestOptions = {
+            'method': 'GET',
+            'headers': this.getDefaultHeaders(true)
+        };
+
+        return await this.sendRequest(url, requestOptions);
+    }
+
+    public async runAgent(
+        request: AgentRunRequest,
+        maxPolls: number = MaxPullRetries
+    ): Promise<AgentRun> {
+        const run = await this.runAgentAsync(request);
+
+        if (!run.id) {
+            throw new WebcrawlerApiError('invalid_response', 'Failed to fetch agent job status', 0);
+        }
+
+        if (AgentTerminalStatuses.includes(run.status)) {
+            return run;
+        }
+
+        for (let i = 0; i < maxPolls; i++) {
+            await new Promise(resolve => setTimeout(resolve, DEFAULT_POLL_DELAY_SECONDS * 1000));
+            const timestamp = new Date().getTime();
+            const agentJob = await this.getAgentJob(`${run.id}?t=${timestamp}`);
+
+            if (AgentTerminalStatuses.includes(agentJob.status)) {
+                return agentJob;
+            }
+        }
+
+        throw new WebcrawlerApiError('timeout', 'Agent run took too long, please retry or increase the number of polling retries', 0);
     }
 
     public async getScrape(scrapeId: string): Promise<ScrapeResponse | ScrapeResponseError> {
@@ -337,5 +402,4 @@ export class WebcrawlerClient {
         return response.json();
     }
 }
-
 

@@ -46,6 +46,31 @@ for (const item of job.job_items) {
 }
 ```
 
+## Run an agent
+
+```javascript
+import webcrawlerapi from "webcrawlerapi-js"
+
+const client = new webcrawlerapi.WebcrawlerClient("YOUR_API_KEY")
+
+const result = await client.runAgent({
+    prompt: "Visit the provided website and return the page title as JSON.",
+    urls: ["https://books.toscrape.com/"],
+    seed_urls_only: true,
+    output_schema: {
+        type: "object",
+        properties: {
+            title: { type: "string" },
+        },
+        required: ["title"],
+        additionalProperties: false,
+    },
+    max_spend_usd: 0.02,
+})
+
+console.log(result.status, result.data)
+```
+
 ## Documentation
 
 - [Scraping](docs/scraping.md) — single page, async mode, AI extraction, parameters, response fields
