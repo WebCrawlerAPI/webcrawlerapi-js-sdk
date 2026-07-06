@@ -102,7 +102,7 @@ export interface JobItem {
     updated_at: string;
     cost: number;
     referred_url: string;
-    link?: string;
+    links?: string;
     depth?: number;
     raw_content_url?: string;
     cleaned_content_url?: string;
