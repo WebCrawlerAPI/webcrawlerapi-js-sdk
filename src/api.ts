@@ -1,4 +1,4 @@
-import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse, ScrapeResponseError, ScrapeId, Action, JobMarkdownResponse, AgentRunRequest, AgentRun, AgentRunList} from "./model";
+import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse, ScrapeResponseError, ScrapeId, JobMarkdownResponse, AgentRunRequest, AgentRun, AgentRunList} from "./model";
 import { JobStatus, ErrorCode } from "./constants";
 import { WebcrawlerApiError, createErrorFromResponse, ErrorResponse } from "./errors";
 
@@ -237,13 +237,12 @@ export class WebcrawlerClient {
         return result!;
     }
 
-    public async crawl(crawlRequest: CrawlRequest, actions?: Action | Action[]): Promise<Job> {
+    public async crawl(crawlRequest: CrawlRequest, maxPolls: number = MaxPullRetries): Promise<Job> {
         const url = `${this.basePath}/${this.apiVersion}/crawl`;
 
         const requestBody = {
             output_formats: ['markdown'],
-            ...crawlRequest,
-            actions: actions ? (Array.isArray(actions) ? actions : [actions]) : undefined
+            ...crawlRequest
         };
 
         const requestOptions = {
@@ -266,7 +265,7 @@ export class WebcrawlerClient {
         }
 
         let delayIntervalMs = initialPullDelayMs;
-        for (let i = 0; i < MaxPullRetries; i++) {
+        for (let i = 0; i < maxPolls; i++) {
             await new Promise(resolve => setTimeout(resolve, delayIntervalMs));
             const timestamp = new Date().getTime();
             const job = await this.getJob(`${jobIdResponse.id}?t=${timestamp}`);
@@ -280,13 +279,12 @@ export class WebcrawlerClient {
         throw new WebcrawlerApiError('timeout', 'Crawling took too long, please retry or increase the number of polling retries', 0);
     }
 
-    public async crawlAsync(crawlRequest: CrawlRequest, actions?: Action | Action[]): Promise<JobId> {
+    public async crawlAsync(crawlRequest: CrawlRequest): Promise<JobId> {
         const url = `${this.basePath}/${this.apiVersion}/crawl`;
 
         const requestBody = {
             output_formats: ['markdown'],
-            ...crawlRequest,
-            actions: actions ? (Array.isArray(actions) ? actions : [actions]) : undefined
+            ...crawlRequest
         };
 
         const requestOptions = {

@@ -58,7 +58,6 @@ export interface CrawlRequest {
     blacklist_regexp?: string;
     /** URL where the server will send a POST request once the job is completed. */
     webhook_url?: string;
-    actions?: Action[];
     /** If true, the crawler will respect the website's robots.txt and skip disallowed pages. Default is false. */
     respect_robots_txt?: boolean;
     /** Extract only the main content of the page. Works best for articles, blog posts, news. */
@@ -67,6 +66,8 @@ export interface CrawlRequest {
     max_depth?: number;
     /** Maximum age of cached content in seconds. Set to 0 to always fetch fresh content. */
     max_age?: number;
+    /** If true, keeps query parameters in crawled URLs instead of stripping them. Default is false. */
+    keep_query_params?: boolean;
 }
 
 export interface Job {
