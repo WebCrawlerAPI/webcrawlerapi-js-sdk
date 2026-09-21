@@ -131,6 +131,17 @@ export interface JobMarkdownResponse {
     content_url: string;
 }
 
+export interface MarkdownRequest {
+    /** The URL of the webpage to extract the article markdown from. */
+    url: string;
+}
+
+export interface MarkdownResponse {
+    success: boolean;
+    /** Cleaned article markdown (main content only). */
+    markdown?: string;
+}
+
 export interface AgentRunRequest {
     /** Natural-language task for the agent to complete. */
     prompt: string;

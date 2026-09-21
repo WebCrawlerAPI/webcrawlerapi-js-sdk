@@ -1,4 +1,4 @@
-import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse, ScrapeResponseError, ScrapeId, JobMarkdownResponse, AgentRunRequest, AgentRun, AgentRunList} from "./model";
+import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse, ScrapeResponseError, ScrapeId, JobMarkdownResponse, MarkdownRequest, MarkdownResponse, AgentRunRequest, AgentRun, AgentRunList} from "./model";
 import { JobStatus, ErrorCode } from "./constants";
 import { WebcrawlerApiError, createErrorFromResponse, ErrorResponse } from "./errors";
 
@@ -370,6 +370,17 @@ export class WebcrawlerClient {
         }
 
         return response.text();
+    }
+
+    public async markdown(request: MarkdownRequest): Promise<MarkdownResponse> {
+        const url = `${this.basePath}/markdown`;
+        const requestOptions = {
+            'method': 'POST',
+            'headers': this.getDefaultHeaders(),
+            'body': JSON.stringify(request),
+        };
+
+        return this.sendRequest(url, requestOptions);
     }
 
     private async sendRequest(url: string, requestOptions: any): Promise<any> {
