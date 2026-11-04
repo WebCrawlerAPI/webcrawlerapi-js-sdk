@@ -31,6 +31,8 @@ export interface ScrapeResponse {
     page_title?: string;
     structured_data?: any;
     links?: string[];
+    /** Server-recommended delay before the next status poll, if provided */
+    recommended_pull_delay_ms?: number;
 }
 
 export interface ScrapeResponseError {

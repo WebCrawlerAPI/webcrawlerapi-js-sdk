@@ -6,6 +6,9 @@ const BASE_PATH = "https://api.webcrawlerapi.com"
 const initialPullDelayMs = 2000
 const MaxPullRetries = 100
 const DEFAULT_POLL_DELAY_SECONDS = 2
+const SCRAPE_MAX_WAIT_MS = 400 * 1000
+// Effectively unbounded by count at the 2s default; elapsed time is the real limit
+const SCRAPE_MAX_POLLS = 1000
 const AgentTerminalStatuses = ["done", "error", "canceled"]
 
 export { WebcrawlerApiError, JobStatus, ErrorCode };
@@ -198,23 +201,27 @@ export class WebcrawlerClient {
             return {
                 success: false,
                 status: status,
-                page_status_code: 0
+                page_status_code: 0,
+                recommended_pull_delay_ms: responseData.recommended_pull_delay_ms
             };
         }
     }
 
     public async scrape(
         request: ScrapeRequest,
-        maxPolls: number = 100
+        maxPolls: number = SCRAPE_MAX_POLLS
     ): Promise<ScrapeResponse | ScrapeResponseError> {
         // Start the scraping job
         const scrapeIdResponse = await this.scrapeAsync(request);
 
         const scrapeId = scrapeIdResponse.id;
+        const startedAt = Date.now();
         let polls = 0;
+        let delayMs = DEFAULT_POLL_DELAY_SECONDS * 1000;
         let result: ScrapeResponse | ScrapeResponseError;
 
-        while (polls < maxPolls) {
+        // Bounded by both elapsed time (SCRAPE_MAX_WAIT_MS) and maxPolls
+        while (polls < maxPolls && Date.now() - startedAt < SCRAPE_MAX_WAIT_MS) {
             result = await this.getScrape(scrapeId);
 
             // Return immediately if scrape is done
@@ -227,13 +234,18 @@ export class WebcrawlerClient {
                 return result;
             }
 
-            // Continue polling if status is in_progress or any other non-terminal status
-            // Wait before next poll
-            await new Promise(resolve => setTimeout(resolve, DEFAULT_POLL_DELAY_SECONDS * 1000));
+            // Use server-recommended delay when present, otherwise keep the default
+            const recommended = (result as ScrapeResponse).recommended_pull_delay_ms;
+            delayMs = recommended && recommended > 0 ? recommended : DEFAULT_POLL_DELAY_SECONDS * 1000;
+
+            // Don't sleep past the overall deadline
+            const remainingMs = SCRAPE_MAX_WAIT_MS - (Date.now() - startedAt);
+            if (remainingMs <= 0) break;
+            await new Promise(resolve => setTimeout(resolve, Math.min(delayMs, remainingMs)));
             polls++;
         }
 
-        // Return the last known state if maxPolls is reached
+        // Return the last known state on timeout
         return result!;
     }
 
