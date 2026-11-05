@@ -1,4 +1,4 @@
-import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse, ScrapeResponseError, ScrapeId, JobMarkdownResponse, MarkdownRequest, MarkdownResponse, AgentRunRequest, AgentRun, AgentRunList} from "./model";
+import {CrawlRequest, Job, JobId, ScrapeRequest, ScrapeResponse, ScrapeResponseError, ScrapeId, JobMarkdownResponse, MarkdownRequest, MarkdownResponse, AgentRunRequest, AgentRun, AgentRunList, BatchScrapeRequest, BatchScrapeId, BatchScrape, BatchScrapeGetOptions, BatchScrapeErrors, ScrapeBatchRequest} from "./model";
 import { JobStatus, ErrorCode } from "./constants";
 import { WebcrawlerApiError, createErrorFromResponse, ErrorResponse } from "./errors";
 
@@ -9,6 +9,9 @@ const DEFAULT_POLL_DELAY_SECONDS = 2
 const SCRAPE_MAX_WAIT_MS = 400 * 1000
 // Effectively unbounded by count at the 2s default; elapsed time is the real limit
 const SCRAPE_MAX_POLLS = 1000
+const BATCH_VERSION = "v2"
+const BATCH_MAX_WAIT_MS = 3600 * 1000
+const BatchTerminalStatuses = ["completed", "failed", "cancelled", "canceled"]
 const AgentTerminalStatuses = ["done", "error", "canceled"]
 
 export { WebcrawlerApiError, JobStatus, ErrorCode };
@@ -207,9 +210,32 @@ export class WebcrawlerClient {
         }
     }
 
+    /**
+     * Scrapes a single URL and waits for the result.
+     *
+     * Passing `url` as an array creates a batch scrape instead, polls until it reaches a
+     * terminal status (completed, failed or cancelled) and returns the first page of items;
+     * follow `next` with getBatch(id, { cursor }) for larger batches. Batch-only options
+     * (max_concurrency, ignore_invalid_urls, ...) go in the same request object. A batch throws a
+     * `timeout` error if it does not finish within an hour or maxPolls.
+     * For manual batch control use scrapeBatchAsync() + getBatch().
+     */
+    public async scrape(request: ScrapeRequest, maxPolls?: number): Promise<ScrapeResponse | ScrapeResponseError>;
+    public async scrape(request: ScrapeBatchRequest, maxPolls?: number): Promise<BatchScrape>;
     public async scrape(
-        request: ScrapeRequest,
+        request: ScrapeRequest | ScrapeBatchRequest,
         maxPolls: number = SCRAPE_MAX_POLLS
+    ): Promise<ScrapeResponse | ScrapeResponseError | BatchScrape> {
+        if (Array.isArray(request.url)) {
+            const { url, ...options } = request;
+            return await this.scrapeBatchAndWait({ ...options, urls: url }, maxPolls);
+        }
+        return await this.scrapeSingle(request as ScrapeRequest, maxPolls);
+    }
+
+    private async scrapeSingle(
+        request: ScrapeRequest,
+        maxPolls: number
     ): Promise<ScrapeResponse | ScrapeResponseError> {
         // Start the scraping job
         const scrapeIdResponse = await this.scrapeAsync(request);
@@ -247,6 +273,64 @@ export class WebcrawlerClient {
 
         // Return the last known state on timeout
         return result!;
+    }
+
+    public async scrapeBatchAsync(request: BatchScrapeRequest): Promise<BatchScrapeId> {
+        const url = `${this.basePath}/${BATCH_VERSION}/batch/scrape`;
+        const requestOptions = {
+            'method': 'POST',
+            'headers': this.getDefaultHeaders(),
+            'body': JSON.stringify(request),
+        };
+        return await this.sendRequest(url, requestOptions);
+    }
+
+    public async getBatch(batchId: string, options: BatchScrapeGetOptions = {}): Promise<BatchScrape> {
+        const params = new URLSearchParams();
+        if (options.limit !== undefined) params.set('limit', String(options.limit));
+        if (options.cursor) params.set('cursor', options.cursor);
+        const query = params.toString();
+        const url = `${this.basePath}/${BATCH_VERSION}/batch/scrape/${batchId}${query ? `?${query}` : ''}`;
+        const requestOptions = {
+            'method': 'GET',
+            'headers': this.getDefaultHeaders(true),
+        };
+        return await this.sendRequest(url, requestOptions);
+    }
+
+    public async getBatchErrors(batchId: string): Promise<BatchScrapeErrors> {
+        const url = `${this.basePath}/${BATCH_VERSION}/batch/scrape/${batchId}/errors`;
+        const requestOptions = {
+            'method': 'GET',
+            'headers': this.getDefaultHeaders(true),
+        };
+        return await this.sendRequest(url, requestOptions);
+    }
+
+    public async cancelBatch(batchId: string): Promise<{ status: string }> {
+        const url = `${this.basePath}/${BATCH_VERSION}/batch/scrape/${batchId}`;
+        const requestOptions = {
+            'method': 'DELETE',
+            'headers': this.getDefaultHeaders(),
+        };
+        return await this.sendRequest(url, requestOptions);
+    }
+
+    private async scrapeBatchAndWait(request: BatchScrapeRequest, maxPolls: number): Promise<BatchScrape> {
+        const created = await this.scrapeBatchAsync(request);
+        if (!created.id) {
+            throw new WebcrawlerApiError('invalid_response', 'Failed to create batch scrape', 0);
+        }
+
+        const startedAt = Date.now();
+        for (let i = 0; i < maxPolls && Date.now() - startedAt < BATCH_MAX_WAIT_MS; i++) {
+            const batch = await this.getBatch(created.id);
+            if (BatchTerminalStatuses.includes(batch.status)) {
+                return batch;
+            }
+            await new Promise(resolve => setTimeout(resolve, DEFAULT_POLL_DELAY_SECONDS * 1000));
+        }
+        throw new WebcrawlerApiError('timeout', 'Batch scrape took too long, use scrapeBatchAsync + getBatch to keep polling', 0);
     }
 
     public async crawl(crawlRequest: CrawlRequest, maxPolls: number = MaxPullRetries): Promise<Job> {

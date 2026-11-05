@@ -178,3 +178,86 @@ export interface AgentRunList {
     items: AgentRun[];
     total: number;
 }
+
+export type BatchScrapeStatus = 'scraping' | 'completed' | 'failed' | 'cancelled';
+
+export interface BatchScrapeRequest {
+    /** URLs to scrape (max is your plan's job items limit). */
+    urls: string[];
+    /** Default is ["markdown"]. */
+    output_formats?: ('markdown' | 'cleaned' | 'html' | 'links' | 'images')[];
+    main_content_only?: boolean;
+    /** CSS selectors to clean from the output. */
+    clean_selectors?: string;
+    /** Max URLs scraped in parallel for this batch. 0 or omitted means no per-batch cap. */
+    max_concurrency?: number;
+    /** Skip invalid URLs and report them in invalid_urls instead of failing the request (default: true). */
+    ignore_invalid_urls?: boolean;
+    /** Public http(s) URL called once when the batch finishes. */
+    webhook_url?: string;
+    /** Cache duration in seconds (default 604800). 0 bypasses the cache. */
+    max_age?: number;
+    respect_robots_txt?: boolean;
+}
+
+/** Request for scrape() with an array `url`: runs a batch scrape and waits for it. Same options as BatchScrapeRequest. */
+export type ScrapeBatchRequest = Omit<BatchScrapeRequest, 'urls'> & {
+    /** URLs to scrape as a batch (max is your plan's job items limit). */
+    url: string[];
+};
+
+export interface BatchScrapeInvalidUrl {
+    url: string;
+    error_code: string;
+    error_message: string;
+}
+
+export interface BatchScrapeId {
+    id: string;
+    status_url: string;
+    invalid_urls: BatchScrapeInvalidUrl[];
+}
+
+export interface BatchScrapeItem {
+    url: string;
+    /** Item status, for example "done" or "error". */
+    status: string;
+    page_status_code?: number;
+    title?: string;
+    markdown_url?: string;
+    cleaned_url?: string;
+    html_url?: string;
+    from_cache?: boolean;
+    error_code?: string;
+    error_message?: string;
+}
+
+export interface BatchScrape {
+    id: string;
+    status: BatchScrapeStatus | string;
+    total: number;
+    completed: number;
+    failed: number;
+    canceled: number;
+    data: BatchScrapeItem[];
+    /** Cursor for the next page. Empty on the last page. */
+    next?: string;
+}
+
+export interface BatchScrapeGetOptions {
+    /** Items per page, 1 to 500 (default 100). */
+    limit?: number;
+    /** Value of `next` from the previous page. */
+    cursor?: string;
+}
+
+export interface BatchScrapeError {
+    url: string;
+    error_code: string;
+    error_message: string;
+}
+
+export interface BatchScrapeErrors {
+    errors: BatchScrapeError[];
+    robots_blocked: string[];
+}

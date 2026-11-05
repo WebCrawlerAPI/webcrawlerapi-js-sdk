@@ -46,6 +46,23 @@ for (const item of job.job_items) {
 }
 ```
 
+## Batch scrape
+
+```javascript
+const batch = await client.scrape({
+    url: ["https://books.toscrape.com/", "https://books.toscrape.com/catalogue/page-2.html"],
+    output_formats: ["markdown"],
+    max_concurrency: 5,
+})
+
+console.log(batch.status, batch.completed, batch.failed)
+for (const item of batch.data) console.log(item.url, item.status, item.markdown_url)
+```
+
+Passing an array as `url` to `scrape()` creates a batch and polls until it finishes (a single string still returns a single result). Batch-only options like `max_concurrency` and `ignore_invalid_urls` go in the same request. For manual control use `scrapeBatchAsync({ urls, ... })`, `getBatch(id, { limit, cursor })`, `getBatchErrors(id)` and `cancelBatch(id)`.
+
+Full batch scrape documentation: [docs/batch-scrape.md](docs/batch-scrape.md).
+
 ## Run an agent
 
 ```javascript
